@@ -29,9 +29,17 @@ public class Program
             option.Accepts(cfg => cfg.Values("C#", "VB"));
             option.DefaultValue = "C#";
         });
-        var template = app.Option("-t|--template <TEMPLATE>", "Specifies the template engine to extract the translatable strings from.", CommandOptionType.SingleValue, option =>
-            option.Accepts(cfg => cfg.Values("Razor", "Liquid"))
-        );
+        var template = app.Option(
+            "-t|--template <TEMPLATE>",
+            "Specifies the template engine to extract the translatable strings from.",
+            CommandOptionType.SingleValue,
+            option =>
+            {
+                option.Accepts(cfg => cfg.Values(
+                        ignoreCase: true,
+                        Enum.GetValues<TemplateEngine>().Select(value => value.ToString()).ToArray()));
+                option.DefaultValue = TemplateEngine.Both.ToString();
+            });
         var ignoredProjects = app.Option("-i|--ignore <IGNORED_PROJECTS>", "Ignores extracting PO files from a given project(s).", CommandOptionType.MultipleValue);
         var localizers = app.Option("--localizer <LOCALIZERS>", "Specifies the name of the localizer(s) that will be used during the extraction process.", CommandOptionType.MultipleValue);
         var single = app.Option("-s|--single <FILE_NAME>", "Specifies the single output file.", CommandOptionType.SingleValue);
@@ -82,18 +90,20 @@ public class Program
                     .OrderBy(f => f));
             }
 
-            if (template.Value() == TemplateEngine.Both)
+            switch (Enum.Parse<TemplateEngine>(template.Value()))
             {
-                projectProcessors.Add(new RazorProjectProcessor());
-                projectProcessors.Add(new LiquidProjectProcessor());
-            }
-            else if (template.Value() == TemplateEngine.Razor)
-            {
-                projectProcessors.Add(new RazorProjectProcessor());
-            }
-            else if (template.Value() == TemplateEngine.Liquid)
-            {
-                projectProcessors.Add(new LiquidProjectProcessor());
+                case TemplateEngine.Both:
+                    projectProcessors.Add(new RazorProjectProcessor());
+                    projectProcessors.Add(new LiquidProjectProcessor());
+                    break;
+                case TemplateEngine.Liquid:
+                    projectProcessors.Add(new LiquidProjectProcessor());
+                    break;
+                case TemplateEngine.Razor:
+                    projectProcessors.Add(new RazorProjectProcessor());
+                    break;
+                case TemplateEngine.None:
+                    break;
             }
 
             if (plugins.Values.Count > 0)
